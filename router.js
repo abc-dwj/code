@@ -54,7 +54,12 @@ function getroute() {
     })
 }
 
-let allconstantRoutes = [{
+/**
+ * constantRoutes
+ * a base page that does not have permission requirements
+ * all roles can be accessed
+ */
+export let constantRoutes = [{
   path: '/redirect',
   component: Layout,
   hidden: true,
@@ -127,13 +132,6 @@ let allconstantRoutes = [{
   ]
 }
 ]
-
-/**
- * constantRoutes
- * a base page that does not have permission requirements
- * all roles can be accessed
- */
-export let constantRoutes = []
 
 /**
  * asyncRoutes
@@ -1103,11 +1101,7 @@ router.beforeEach((to, from, next) => {
 });
 
 export function pushRouter(res){
-    asyncRoutes = [{
-      path: '*',
-      redirect: '/404',
-      hidden: true
-    }]
+  var addRoute = []
     res.forEach((item,index)=>{
       var routeitem = {
         // alwaysShow:item.alwaysShow,
@@ -1159,13 +1153,24 @@ export function pushRouter(res){
       routeitem.children = children
       asyncRoutes.push(routeitem)
     })
-  constantRoutes = allconstantRoutes.concat(asyncRoutes)
+  constantRoutes = constantRoutes.concat(addRoute)
   createRouter()
 }
 
 export function clearRouter(){
-  constantRoutes = []
-  resetRouter()
+  if(asyncRoutes){
+    asyncRoutes.forEach((asyncitem,asyncindex)=>{
+      let aaindex = router.options.routes.findIndex((r) => r === asyncitem)
+      if (aaindex !== -1) {
+        router.options.routes.splice(aaindex, 1)
+      }
+    })
+    asyncRoutes = [{
+      path: '*',
+      redirect: '/404',
+      hidden: true
+    }]
+  }
 }
 
 
@@ -1176,9 +1181,7 @@ export function resetRouter() {
 }
 
 router.pushRouter = function(param){
-  router = null
-  constantRoutes = []
-  resetRouter()
+  clearRouter()
   pushRouter(param)
 }
 
