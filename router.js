@@ -13,6 +13,8 @@ import store from '../store'
 
 import apirequest from '../api/request.js'
 
+import Cookies from 'js-cookie'
+
 /**
  * Note: sub-menu only appear when route children.length >= 1
  * Detail see: https://panjiachen.github.io/vue-element-admin-site/guide/essentials/router-and-nav.html
@@ -52,12 +54,7 @@ function getroute() {
     })
 }
 
-/**
- * constantRoutes
- * a base page that does not have permission requirements
- * all roles can be accessed
- */
-export const constantRoutes = [{
+let allconstantRoutes = [{
   path: '/redirect',
   component: Layout,
   hidden: true,
@@ -132,10 +129,22 @@ export const constantRoutes = [{
 ]
 
 /**
+ * constantRoutes
+ * a base page that does not have permission requirements
+ * all roles can be accessed
+ */
+export let constantRoutes = []
+
+/**
  * asyncRoutes
  * the routes that need to be dynamically loaded based on user roles
  */
-export const asyncRoutes = [
+export let asyncRoutes = [
+  {
+      path: '*',
+      redirect: '/404',
+      hidden: true
+    }
   // {
   //   path: '/dashboard',
   //   component: Layout,
@@ -988,13 +997,6 @@ export const asyncRoutes = [
   //     }
   //   ]
   // },
-
-  // 404 page must be placed at the end !!!
-  {
-    path: '*',
-    redirect: '/404',
-    hidden: true
-  }
 ]
 
 // if(addRouter && addRouter.length > 0){
@@ -1054,7 +1056,9 @@ function routerChildren(children) { //对子路由的component解析
 }
 
 router.beforeEach((to, from, next) => {
-  if (to.path === '/login') {
+  let token = Cookies.get('loginkey')
+  if (!token || to.path === '/login') {
+    console.log('router：login')
     next();
   } else {
     getroute().then((res) =>{
@@ -1062,59 +1066,8 @@ router.beforeEach((to, from, next) => {
         next();
         return
       }
-      var addRoute = []
-        res.forEach((item,index)=>{
-          var routeitem = {
-            // alwaysShow:item.alwaysShow,
-            path:item.path,
-            component:Layout,
-            redirect:item.redirect
-          }
-          if(item.affix != null){
-            routeitem.affix = item.affix
-          }
-          if(item.alwaysShow != null){
-            routeitem.alwaysShow = item.alwaysShow
-          }
-          if(item.meta){
-            routeitem.meta = {
-               title:item.meta.title,
-               icon:item.meta.icon,
-            }
-            if(item.meta.affix != null){
-              routeitem.meta.affix = item.meta.affix
-            }
-          }
-
-          var children = []
-          item.children.forEach((sonitem,sonindex)=>{
-             var childrenobj = {
-               path:sonitem.path,
-               component: (resolve) => require([`@/views/${sonitem.component}`], resolve),
-               name:sonitem.name,
-               meta:{
-                 title:sonitem.meta.title,
-                 icon:sonitem.meta.icon,
-               }
-             }
-
-             if(sonitem.hidden){
-               childrenobj.hidden = true
-             }
-             if(sonitem.alwaysShow != null){
-               childrenobj.alwaysShow = sonitem.alwaysShow
-             }
-
-             if(sonitem.meta.affix != null){
-               childrenobj.meta.affix = sonitem.meta.affix
-             }
-
-             children.push(childrenobj)
-          })
-          routeitem.children = children
-          asyncRoutes.push(routeitem)
-        })
-
+      clearRouter()
+      pushRouter(res)
       //下面这些是固定的router数据，后面添加页面可以对照调试
       // asyncRoutes.push({
       //     path: '/reports',
@@ -1143,15 +1096,90 @@ router.beforeEach((to, from, next) => {
       //     }
       //     ]
       //   })
-        next();
+
+      next();
     })
   }
 });
+
+export function pushRouter(res){
+    asyncRoutes = [{
+      path: '*',
+      redirect: '/404',
+      hidden: true
+    }]
+    res.forEach((item,index)=>{
+      var routeitem = {
+        // alwaysShow:item.alwaysShow,
+        path:item.path,
+        component:Layout,
+        redirect:item.redirect
+      }
+      if(item.affix != null){
+        routeitem.affix = item.affix
+      }
+      if(item.alwaysShow != null){
+        routeitem.alwaysShow = item.alwaysShow
+      }
+      if(item.meta){
+        routeitem.meta = {
+           title:item.meta.title,
+           icon:item.meta.icon,
+        }
+        if(item.meta.affix != null){
+          routeitem.meta.affix = item.meta.affix
+        }
+      }
+
+      var children = []
+      item.children.forEach((sonitem,sonindex)=>{
+         var childrenobj = {
+           path:sonitem.path,
+           component: (resolve) => require([`@/views/${sonitem.component}`], resolve),
+           name:sonitem.name,
+           meta:{
+             title:sonitem.meta.title,
+             icon:sonitem.meta.icon,
+           }
+         }
+
+         if(sonitem.hidden){
+           childrenobj.hidden = true
+         }
+         if(sonitem.alwaysShow != null){
+           childrenobj.alwaysShow = sonitem.alwaysShow
+         }
+
+         if(sonitem.meta.affix != null){
+           childrenobj.meta.affix = sonitem.meta.affix
+         }
+
+         children.push(childrenobj)
+      })
+      routeitem.children = children
+      asyncRoutes.push(routeitem)
+    })
+  constantRoutes = allconstantRoutes.concat(asyncRoutes)
+  createRouter()
+}
+
+export function clearRouter(){
+  constantRoutes = []
+  resetRouter()
+}
+
 
 // Detail see: https://github.com/vuejs/vue-router/issues/1234#issuecomment-357941465
 export function resetRouter() {
   const newRouter = createRouter()
   router.matcher = newRouter.matcher // reset router
+}
+
+router.pushRouter = function(param){
+  router = null
+  constantRoutes = []
+  resetRouter()
+  pushRouter(param)
 }
 
 export default router
